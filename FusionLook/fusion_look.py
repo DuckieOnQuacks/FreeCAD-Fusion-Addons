@@ -232,7 +232,8 @@ def build_menu():
         _menu.aboutToShow.connect(_sync_menu)
         mb.addMenu(_menu)
     act = _menu.menuAction()
-    if not act.isVisible(): act.setVisible(True)      # never remove / re-add here: churning the menu bar upsets the macOS menu
+    if not any(a == act for a in mb.actions()): mb.addAction(act)     # FreeCAD (or the Ribbon) dropped it: put it back once
+    if not act.isVisible(): act.setVisible(True)
     return True
 
 
