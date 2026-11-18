@@ -344,8 +344,28 @@ def build_menu():
         if not any(x == aact for x in mb.actions()): mb.insertAction(act, aact)
         if not aact.isVisible(): aact.setVisible(True)
     except Exception:
-        pass
+        aact = None
+    try: _sync_ribbon_menu([x for x in (aact, act) if x is not None])
+    except Exception: pass
     return True
+
+
+def _sync_ribbon_menu(ours):
+    """FreeCAD Ribbon hides the menu bar (on Windows / Linux) and copies its menus into its Menu button when it builds
+    that menu, which can be before our menus exist. Put ours in (before Help) and drop stale copies."""
+    mw = Gui.getMainWindow()
+    for btn in mw.findChildren(QtWidgets.QToolButton):
+        if type(btn).__name__ != 'RibbonApplicationButton': continue
+        m = btn.menu()
+        if m is None: continue
+        names = (MENU_NAME, 'FusionLookAppearanceMenu')
+        for x in m.actions():   # copies of an older Panels / Appearance menu (after a reload)
+            if x.menu() is not None and x.menu().objectName() in names and not any(x == o for o in ours): m.removeAction(x)
+        help_act = next((x for x in m.actions() if x.text().replace('&', '').strip() == 'Help'), None)
+        for o in ours:
+            if not any(x == o for x in m.actions()):
+                if help_act is not None: m.insertAction(help_act, o)
+                else: m.addAction(o)
 
 
 def _tick():

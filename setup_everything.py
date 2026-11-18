@@ -139,6 +139,19 @@ def _setup_everything():
                 say('PROBLEM installing %s - install it from Tools > Addon Manager instead:\n%s'
                     % (name, traceback.format_exc()))
 
+    # ---- 2a. SearchBar 1.8.3 bug: getAllToolbars() calls workbench.name() on workbenches that are not loaded
+    #          yet, which raises inside its own error handler; every search then fails. One-line fix.
+    try:
+        f = os.path.join(mod, 'SearchBar', 'ResultsToolbar.py')
+        if os.path.exists(f):
+            s = open(f, encoding='utf-8').read()
+            old = 'print(f"{workbench.name()} not available")'
+            if old in s:
+                open(f, 'w', encoding='utf-8').write(s.replace(old, 'print(f"{wbname} not available")  # patched: workbench.name() fails for workbenches not loaded yet'))
+                say('Patched the SearchBar bug that broke searching')
+    except Exception:
+        say('PROBLEM patching SearchBar:\n' + traceback.format_exc())
+
     # ---- 2b. LuxCoreRender for the Render workbench (Windows) ------------------------------
     try:
         import sys
