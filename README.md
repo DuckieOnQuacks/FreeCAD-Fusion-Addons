@@ -5,7 +5,7 @@ Four small add-ons that make FreeCAD look and work more like Fusion. Written for
 | Add-on | What it adds |
 |---|---|
 | **ModelBrowser** | A "Models" panel listing the FreeCAD files in one folder with preview pictures. Double-click opens. Search, refresh, choose folder, import STEP files, rebuild previews, move to Trash (right-click or Delete). |
-| **FusionLook** | A ground grid in every 3D view, optional text under toolbar icons, dark-steel styling for plain grey parts, and a **Panels** menu in the menu bar to show or hide everything here. |
+| **FusionLook** | A ground grid in every 3D view, optional text under toolbar icons, dark-steel styling for plain grey parts, a **Panels** menu in the menu bar to show or hide everything here (plus Reset Panel Layout), and an **Appearance** menu: one-click glass (green E30 tint, clear, dark), rubber, plastics, metals (steel, aluminium, chrome, zinc, black oxide, brass, copper) and paints (approximate BMW Alpine White, Brilliant Red, Diamond Black), a custom paint colour, and copy / paste look. Select parts first; a selected container colours everything in it. The presets are also written to FreeCAD's user material library (folder "Appearance - Fusion Look"). |
 | **JointSlider** | A "Joint Slider" panel: pick a joint in an assembly and move it with a slider, a typed value, Min / Max or Play. Every step is checked so fixed parts never move and limits are respected. |
 | **ClaudeBridge** | Lets Claude run scripts inside FreeCAD and get results and pictures back through a folder (`~/FreeCAD Models/_bridge`). **Off every time FreeCAD starts**; switch it on from the Panels menu. |
 

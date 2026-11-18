@@ -1,4 +1,5 @@
 # Fusion-style look for FreeCAD's 3D view: draws a ground grid on the XY plane in every 3D view.
+# Also loads fusion_appearance.py (Appearance menu: glass, rubber, plastics, metals, paints).
 # Installed as an add-on (Mod/FusionLook). To remove it, delete that folder. View > Ground Grid toggles it.
 import math
 import FreeCAD as App
@@ -337,6 +338,13 @@ def build_menu():
     act = _menu.menuAction()
     if not any(a == act for a in mb.actions()): mb.addAction(act)     # FreeCAD (or the Ribbon) dropped it: put it back once
     if not act.isVisible(): act.setVisible(True)
+    try:   # the Appearance menu sits just before Panels
+        import fusion_appearance
+        aact = fusion_appearance.menu(mb).menuAction()
+        if not any(x == aact for x in mb.actions()): mb.insertAction(act, aact)
+        if not aact.isVisible(): aact.setVisible(True)
+    except Exception:
+        pass
     return True
 
 
@@ -365,6 +373,10 @@ def start_timer():
 
 def setup():
     """Called once at FreeCAD start-up."""
+    try:
+        import fusion_appearance; fusion_appearance.setup()
+    except Exception as e:
+        App.Console.PrintWarning('Fusion look: appearance presets not loaded (%s)\n' % e)
     try:
         Gui.addCommand('FusionLook_ToggleGrid', _ToggleGrid())
         Gui.addWorkbenchManipulator(_Manipulator())
