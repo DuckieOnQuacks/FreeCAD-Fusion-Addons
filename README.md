@@ -9,6 +9,16 @@ Four small add-ons that make FreeCAD look and work more like Fusion. Written for
 | **JointSlider** | A "Joint Slider" panel: pick a joint in an assembly and move it with a slider, a typed value, Min / Max or Play. Every step is checked so fixed parts never move and limits are respected. |
 | **ClaudeBridge** | Lets Claude run scripts inside FreeCAD and get results and pictures back through a folder (`~/FreeCAD Models/_bridge`). **Off every time FreeCAD starts**; switch it on from the Panels menu. |
 
+## Set up a new computer in one step
+
+Install FreeCAD 1.1, open it, show the Python console (View > Panels > Python Console), paste this line, press Enter, wait for "Setup finished", then restart FreeCAD:
+
+```python
+import urllib.request as u; exec(u.urlopen('https://raw.githubusercontent.com/DuckieOnQuacks/FreeCAD-Fusion-Addons/main/setup_everything.py').read().decode())
+```
+
+`setup_everything.py` installs the four add-ons in this repo, installs FreeCAD Ribbon, Detessellate, SearchBar and SaveAndRestore, applies the Fusion-like view settings (the old values are saved to `~/FreeCAD Models/_settings_backup.json`) and creates `~/FreeCAD Models`. It is safe to run again. Models are not part of this repo; copy your `FreeCAD Models` folder across separately.
+
 ## Install
 
 1. Download or clone this repository.
