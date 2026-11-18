@@ -1,4 +1,5 @@
-# Joint slider for FreeCAD assemblies: pick a revolute or slider joint and move it with a slider, a typed value, or Play.
+# Joint slider for FreeCAD assemblies: pick a revolute or slider joint and move it with a slider, a typed value, or Play,
+# and Record a video of it moving (joint_recorder.py).
 # Installed as an add-on (Mod/JointSlider). To remove it, delete that folder.
 import math
 import FreeCAD as App
@@ -67,6 +68,24 @@ class Panel(QtWidgets.QWidget):
         self.playBtn = QtWidgets.QToolButton(); self.playBtn.setText('Play'); self.playBtn.setCheckable(True); self.playBtn.toggled.connect(self.playToggled)
         row.addWidget(self.minBtn); row.addWidget(self.spin, 1); row.addWidget(self.maxBtn); row.addWidget(self.playBtn)
         lay.addLayout(row)
+        # Record: save a video of the joint moving (joint_recorder.py)
+        self.recording = False; self.cancel = False
+        rrow = QtWidgets.QHBoxLayout()
+        self.recBtn = QtWidgets.QToolButton(); self.recBtn.setText('Record')
+        self.recBtn.setToolTip('Save a video of this joint moving from Min to Max and back (click the arrow for options)')
+        self.recBtn.setPopupMode(QtWidgets.QToolButton.MenuButtonPopup)
+        self.recBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
+        m = QtWidgets.QMenu(self.recBtn)
+        m.addAction('Record Min -> Max -> Min').triggered.connect(lambda checked=False: self.record(True))
+        m.addAction('Record Min -> Max').triggered.connect(lambda checked=False: self.record(False))
+        m.addSeparator()
+        self.hdAct = m.addAction('Full HD 1920 x 1080 (otherwise the size of the 3D view)'); self.hdAct.setCheckable(True)
+        self.hdAct.setChecked(App.ParamGet('User parameter:BaseApp/Preferences/Mod/JointSlider').GetBool('RecordFullHD', False))
+        self.hdAct.toggled.connect(lambda on: App.ParamGet('User parameter:BaseApp/Preferences/Mod/JointSlider').SetBool('RecordFullHD', on))
+        m.addAction('Open Recordings folder').triggered.connect(self.openRecordings)
+        self.recBtn.setMenu(m); self.recBtn.clicked.connect(self.recordClicked)
+        rrow.addWidget(self.recBtn); rrow.addStretch(1)
+        lay.addLayout(rrow)
         self.status = QtWidgets.QLabel(''); self.status.setWordWrap(True); self.status.setEnabled(False)
         lay.addWidget(self.status); lay.addStretch(1)
         self.poll = QtCore.QTimer(self); self.poll.setInterval(1000); self.poll.timeout.connect(self.sync); self.poll.start()
@@ -99,7 +118,7 @@ class Panel(QtWidgets.QWidget):
         return lo, hi
 
     def sync(self):
-        if self.busy or self.player.isActive(): return
+        if self.busy or self.player.isActive() or getattr(self, 'recording', False): return
         try:
             doc = App.ActiveDocument; asm = _assembly(doc)
             joints = _joints(asm) if asm is not None else []
@@ -113,7 +132,7 @@ class Panel(QtWidgets.QWidget):
                 self.combo.setCurrentIndex(pick if joints else -1); self.combo.blockSignals(False)
                 self.title.setText(asm.Label if asm is not None else 'No assembly in this document')
                 self.status.setText('' if joints else 'Open a model that has movable joints.')
-                for w in (self.combo, self.slider, self.spin, self.minBtn, self.maxBtn, self.playBtn): w.setEnabled(bool(joints))
+                for w in (self.combo, self.slider, self.spin, self.minBtn, self.maxBtn, self.playBtn, self.recBtn): w.setEnabled(bool(joints))
                 self.jointChanged()
             else:
                 self.show_value()
@@ -199,6 +218,31 @@ class Panel(QtWidgets.QWidget):
         if not self.drive(j, t):
             self.direction = -self.direction
         self.show_value()
+
+    # ---- recording a video ----
+    def recordClicked(self):
+        if self.recording: self.cancel = True; return
+        self.record(True)
+
+    def record(self, both_ways):
+        if self.recording or self.joint() is None: return
+        if self.playBtn.isChecked(): self.playBtn.setChecked(False)
+        import joint_recorder
+        others = (self.combo, self.slider, self.spin, self.minBtn, self.maxBtn, self.playBtn)
+        for w in others: w.setEnabled(False)
+        self.recBtn.setText('Stop')
+        try:
+            joint_recorder.record(self, both_ways=both_ways, full_hd=self.hdAct.isChecked())
+        except Exception as e:
+            self.status.setText('Recording failed: %s' % str(e)[:90])
+            App.Console.PrintWarning('Joint recorder: %s\n' % e)
+        finally:
+            self.recording = False; self.recBtn.setText('Record')
+            for w in others: w.setEnabled(True)
+
+    def openRecordings(self):
+        import joint_recorder
+        QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(joint_recorder.recordings_dir()))
 
     def drive(self, j, target, quiet=False):
         """Move the joint to `target` (degrees or mm): turn / slide the part on the far side of the joint, hold it there with
