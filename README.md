@@ -17,7 +17,7 @@ Install FreeCAD 1.1, open it, show the Python console (View > Panels > Python Co
 import urllib.request as u; exec(u.urlopen('https://raw.githubusercontent.com/DuckieOnQuacks/FreeCAD-Fusion-Addons/main/setup_everything.py').read().decode())
 ```
 
-`setup_everything.py` installs the four add-ons in this repo, installs FreeCAD Ribbon, Detessellate, SearchBar and SaveAndRestore, applies the Fusion-like view settings (the old values are saved to `~/FreeCAD Models/_settings_backup.json`) and creates `~/FreeCAD Models`. It is safe to run again. Models are not part of this repo; copy your `FreeCAD Models` folder across separately.
+`setup_everything.py` installs the four add-ons in this repo, installs FreeCAD Ribbon, Detessellate, SearchBar, SaveAndRestore and Render (photo-realistic rendering; on Windows it also downloads LuxCoreRender 2.6, about 142 MB, into `%LOCALAPPDATA%\Programs\LuxCoreRender` and connects it), applies the Fusion-like view settings (the old values are saved to `~/FreeCAD Models/_settings_backup.json`) and creates `~/FreeCAD Models`. It is safe to run again. Models are not part of this repo; copy your `FreeCAD Models` folder across separately.
 
 ## Install
 

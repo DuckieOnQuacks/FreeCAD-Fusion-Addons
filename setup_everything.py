@@ -7,7 +7,8 @@
 #
 # What it does (safe to run again; it skips what is already there):
 #   1. installs the four add-ons in this repo (ModelBrowser, FusionLook, JointSlider, ClaudeBridge)
-#   2. installs FreeCAD Ribbon, Detessellate, SearchBar and SaveAndRestore
+#   2. installs FreeCAD Ribbon, Detessellate, SearchBar, SaveAndRestore and Render
+#      (and on Windows the LuxCoreRender 2.6 renderer, ~142 MB, for Render)
 #   3. applies the Fusion-like view settings (old values saved to ~/FreeCAD Models/_settings_backup.json)
 #   4. creates ~/FreeCAD Models, the folder the Models panel lists
 
@@ -21,7 +22,8 @@ def _setup_everything():
     THIRD = (('FreeCAD-Ribbon', 'APEbbers/FreeCAD-Ribbon', 'main'),
              ('Detessellate', 'DesignWeaver3D/Detessellate', 'main'),
              ('SearchBar', 'APEbbers/SearchBar', 'main'),
-             ('SaveAndRestore', 'APEbbers/SaveAndRestore', 'main'))
+             ('SaveAndRestore', 'APEbbers/SaveAndRestore', 'main'),
+             ('Render', 'FreeCAD/FreeCAD-render', 'master'))
     mod = os.path.join(App.getUserAppDataDir(), 'Mod')
     models = os.path.expanduser('~/FreeCAD Models')
     os.makedirs(mod, exist_ok=True)
@@ -136,6 +138,37 @@ def _setup_everything():
             except Exception:
                 say('PROBLEM installing %s - install it from Tools > Addon Manager instead:\n%s'
                     % (name, traceback.format_exc()))
+
+    # ---- 2b. LuxCoreRender for the Render workbench (Windows) ------------------------------
+    try:
+        import sys
+        p = App.ParamGet('User parameter:BaseApp/Preferences/Mod/Render')
+        if sys.platform.startswith('win'):
+            root = os.path.join(os.environ.get('LOCALAPPDATA', os.path.expanduser('~')), 'Programs', 'LuxCoreRender')
+            sdk = os.path.join(root, 'luxcorerender-v2.6-win64-sdk')
+            binp = os.path.join(sdk, 'bin')
+            if not os.path.exists(os.path.join(binp, 'luxcoreconsole.exe')):
+                say('Downloading LuxCoreRender 2.6 (about 142 MB) ...')
+                data = fetch('https://github.com/LuxCoreRender/LuxCore/releases/download/'
+                             'luxcorerender_v2.6/luxcorerender-v2.6-win64-sdk.zip')
+                os.makedirs(root, exist_ok=True)
+                z = zipfile.ZipFile(io.BytesIO(data))
+                if any(n.startswith('/') or '..' in n.split('/') for n in z.namelist()):
+                    raise Exception('unexpected paths in the LuxCore zip')
+                z.extractall(root)
+            lib = os.path.join(sdk, 'lib')
+            for f in os.listdir(lib):            # luxcore.dll etc. must sit next to the programs
+                if f.lower().endswith('.dll') and not os.path.exists(os.path.join(binp, f)):
+                    shutil.copy2(os.path.join(lib, f), os.path.join(binp, f))
+            p.SetString('LuxCorePath', os.path.join(binp, 'luxcoreui.exe'))
+            p.SetString('LuxCoreConsolePath', os.path.join(binp, 'luxcoreconsole.exe'))
+            App.saveParameter()
+            say('LuxCoreRender ready in %s and connected to Render' % sdk)
+        elif not p.GetString('LuxCorePath', ''):
+            say('LuxCoreRender: download it from luxcorerender.org for this computer, then set its path in '
+                'Edit > Preferences > Render (LuxCore UI path and LuxCore command (cli) path)')
+    except Exception:
+        say('PROBLEM setting up LuxCoreRender:\n' + traceback.format_exc())
 
     # ---- 3. Fusion-like view settings ------------------------------------------------------
     try:
