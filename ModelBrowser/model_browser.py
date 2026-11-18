@@ -63,6 +63,7 @@ class Panel(QtWidgets.QWidget):
         mm.addAction('Ground grid on / off', self.toggleGrid)
         mm.addAction('Joint Slider panel on / off', self.toggleSlider)
         mm.addAction('Claude bridge on / off', self.toggleBridge)
+        mm.addSeparator(); mm.addAction('Reset panel layout', self.resetPanels)
         self.moreBtn.setMenu(mm)
         row.addWidget(self.folderBtn, 1); row.addWidget(self.refreshBtn, 0); row.addWidget(self.moreBtn, 0)
         lay.addLayout(row)
@@ -289,6 +290,12 @@ class Panel(QtWidgets.QWidget):
         except Exception as e:
             self.status.setText('Claude bridge not available (%s)' % str(e)[:40])
 
+    def resetPanels(self):
+        try:
+            import fusion_look; fusion_look.reset_panels()
+        except Exception as e:
+            App.Console.PrintWarning('Models: could not reset the panel layout (%s)\n' % e)
+
     def toggleGrid(self):
         try:
             import fusion_look; fusion_look._ToggleGrid().Activated()
@@ -363,6 +370,12 @@ def _tree_dock(mw):
     return None
 
 
+def _usable(mw, o):
+    """A panel we may dock against: really docked in the main window (not floating, not in FreeCAD's overlay)."""
+    if o is None or o.isFloating() or o.parentWidget() != mw: return False
+    return mw.dockWidgetArea(o) != QtCore.Qt.NoDockWidgetArea
+
+
 def install():
     mw = Gui.getMainWindow()
     d = dock()
@@ -376,7 +389,7 @@ def install():
         mw.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d)
         try:   # its own column at the far left, like a project panel
             tree = _tree_dock(mw)
-            if tree is not None and not tree.isFloating(): mw.splitDockWidget(d, tree, QtCore.Qt.Horizontal)
+            if _usable(mw, tree): mw.splitDockWidget(d, tree, QtCore.Qt.Horizontal)
             QtCore.QTimer.singleShot(400, lambda: mw.resizeDocks([d], [300], QtCore.Qt.Horizontal))   # after the layout settles
         except Exception:
             pass

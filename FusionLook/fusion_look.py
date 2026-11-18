@@ -170,6 +170,108 @@ def apply_labels():
 
 # ---- "Panels" menu in the top menu bar ----
 MENU_NAME = 'FusionLookPanelsMenu'
+# ---- panel layout: repair and reset --------------------------------------------------------
+# FreeCAD's main window can get stuck with its panel layout frozen (panels drawn on top of each other, new panels
+# never placed). Saving the layout and loading it straight back un-sticks it without moving anything.
+TREE_NAMES = ('Model', 'Combo View', 'Tree view')
+
+
+def in_overlay(d):
+    """True when a panel is held by FreeCAD's overlay (transparent panels over the 3D view) instead of docked."""
+    p = d.parentWidget()
+    while p is not None:
+        if 'Overlay' in p.metaObject().className(): return True
+        p = p.parentWidget()
+    return False
+
+
+def docked(d):
+    """True for a panel that sits in the main window's normal dock layout."""
+    return d is not None and not d.isFloating() and not in_overlay(d) and d.parentWidget() == Gui.getMainWindow()
+
+
+def tree_dock():
+    """FreeCAD's own model tree panel (or None)."""
+    for o in Gui.getMainWindow().findChildren(QtWidgets.QDockWidget):
+        if o.objectName() in TREE_NAMES or o.windowTitle() in TREE_NAMES: return o
+    return None
+
+
+def layout_broken():
+    """True when two docked panels overlap, or one overlaps the 3D view: the sign of a frozen layout."""
+    mw = Gui.getMainWindow(); rects = []
+    for d in mw.findChildren(QtWidgets.QDockWidget):
+        if not d.isVisible() or not docked(d): continue
+        g = d.geometry()
+        if g.right() < 0 or g.bottom() < 0: continue          # a tab that is not in front: Qt parks it off-screen
+        rects.append((d.objectName(), g))
+    c = mw.centralWidget().geometry() if mw.centralWidget() is not None else None
+    for i, (name, a) in enumerate(rects):
+        if c is not None and name != 'Ribbon' and a.intersects(c): return True
+        for _, b in rects[i + 1:]:
+            if a.intersects(b): return True
+    return False
+
+
+def unfreeze():
+    mw = Gui.getMainWindow()
+    return bool(mw.restoreState(mw.saveState()))
+
+
+def heal_layout():
+    """Run at start-up: un-stick the layout only if it looks broken."""
+    try:
+        if layout_broken():
+            unfreeze()
+            App.Console.PrintMessage('Fusion look: panel layout was stuck; repaired\n')
+            return True
+    except Exception as e:
+        App.Console.PrintWarning('Fusion look: layout check failed (%s)\n' % e)
+    return False
+
+
+_bad = 0; _heals = 0
+
+
+def _watch_layout():
+    """Called every couple of seconds: repair a layout that stays broken (at most three times per session)."""
+    global _bad, _heals
+    if _heals >= 3: return
+    if QtWidgets.QApplication.mouseButtons() != QtCore.Qt.NoButton or not layout_broken():   # never while a panel is being dragged
+        _bad = 0; return
+    _bad += 1
+    if _bad >= 3:
+        _bad = 0; _heals += 1
+        unfreeze()
+        App.Console.PrintMessage('Fusion look: panel layout was stuck; repaired\n')
+
+
+def reset_panels():
+    """Panels menu > Reset Panel Layout: Models at the far left, then the Model tree with Joint Slider as a tab behind it."""
+    mw = Gui.getMainWindow()
+    unfreeze()
+    by = {d.objectName(): d for d in mw.findChildren(QtWidgets.QDockWidget)}
+    models, joint, tree = by.get('ModelBrowserDock'), by.get('JointSliderDock'), tree_dock()
+    if tree is not None and (tree.isFloating() or in_overlay(tree)): tree = None      # leave floating / overlay panels alone
+    left = QtCore.Qt.LeftDockWidgetArea
+    first = next((d for d in (models, tree, joint) if d is not None), None)
+    if first is None: return
+    mw.addDockWidget(left, first)
+    if models is not None and tree is not None: mw.splitDockWidget(models, tree, QtCore.Qt.Horizontal)
+    if joint is not None:
+        if tree is not None: mw.tabifyDockWidget(tree, joint)
+        elif models is not None: mw.tabifyDockWidget(models, joint)
+    for d in (models, tree, joint):
+        if d is not None: d.show()
+    if tree is not None: tree.raise_()
+
+    def size():
+        ds = [d for d in (models, tree) if d is not None]
+        if ds: mw.resizeDocks(ds, [280, 300][:len(ds)], QtCore.Qt.Horizontal)
+    QtCore.QTimer.singleShot(500, size)                       # after the layout settles
+
+
+
 _menu = None; _acts = {}
 
 
@@ -229,6 +331,7 @@ def build_menu():
             if it is None: _menu.addSeparator(); continue
             a = _menu.addAction(it[0]); a.setCheckable(True); a.triggered.connect(lambda checked=False, f=it[1]: (f(), _sync_menu()))
             _acts[it[0]] = a
+        _menu.addSeparator(); _menu.addAction('Reset Panel Layout').triggered.connect(lambda checked=False: reset_panels())
         _menu.aboutToShow.connect(_sync_menu)
         mb.addMenu(_menu)
     act = _menu.menuAction()
@@ -242,6 +345,8 @@ def _tick():
     try: apply_labels()
     except Exception: pass
     try: build_menu()
+    except Exception: pass
+    try: _watch_layout()
     except Exception: pass
     return n
 
@@ -266,3 +371,4 @@ def setup():
     except Exception as e:
         App.Console.PrintWarning('Fusion look: menu entry not added (%s)\n' % e)
     QtCore.QTimer.singleShot(2000, start_timer)
+    QtCore.QTimer.singleShot(6000, heal_layout)          # after every add-on has placed its panels

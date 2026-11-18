@@ -354,11 +354,15 @@ def install():
     if not restored:
         tree = None
         for o in mw.findChildren(QtWidgets.QDockWidget):
-            if o.windowTitle() in ('Model', 'Combo View', 'Tree view') and not o.isFloating(): tree = o
+            # only a tree that is really docked: not floating, not held by FreeCAD's overlay, and in a dock area
+            if (o.windowTitle() in ('Model', 'Combo View', 'Tree view') and not o.isFloating() and o.parentWidget() == mw
+                    and mw.dockWidgetArea(o) != QtCore.Qt.NoDockWidgetArea): tree = o
         if tree is not None:
             mw.addDockWidget(mw.dockWidgetArea(tree), d); mw.tabifyDockWidget(tree, d); tree.raise_()   # a tab beside the model tree
         else:
-            mw.addDockWidget(QtCore.Qt.RightDockWidgetArea, d)
+            mw.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d)
+            other = mw.findChild(QtWidgets.QDockWidget, 'ModelBrowserDock')
+            if other is not None and not other.isFloating() and other.parentWidget() == mw: mw.tabifyDockWidget(other, d)
     d.show()
     return d
 
